@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   context.subscriptions.push(statusBar);
 
-  const getConfig = () => vscode.workspace.getConfiguration('bugBeats');
+  const getConfig = () => vscode.workspace.getConfiguration('beepify');
   const detector = new StateAnalyzer(getConfig);
   const manager = new ThemeManager(statusBar, getConfig, context);
   // extensionKind:["ui"] in package.json ensures this always runs on the LOCAL
@@ -186,7 +186,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(e => {
-      if (!e.affectsConfiguration('bugBeats')) { return; }
+      if (!e.affectsConfiguration('beepify')) { return; }
       lastAppliedMood = undefined;
       // Silent on settings changes — no sound blast while editing settings JSON
       evaluateAndApply(true, false);
@@ -194,26 +194,26 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   async function toggleMute(): Promise<void> {
-    const cfg = vscode.workspace.getConfiguration('bugBeats');
+    const cfg = vscode.workspace.getConfiguration('beepify');
     const muted = !cfg.get<boolean>('soundEnabled', true);
     // flip: if currently muted (soundEnabled=false), set to true and vice versa
     await cfg.update('soundEnabled', muted, vscode.ConfigurationTarget.Global);
     vscode.window.setStatusBarMessage(
-      muted ? 'Bug Beats: 🔊 Sound ON' : 'Bug Beats: 🔇 Muted', 3000
+      muted ? 'Beepify: 🔊 Sound ON' : 'Beepify: 🔇 Muted', 3000
     );
   }
 
   // Mute is a keyboard shortcut (Cmd/Ctrl+Alt+M) and also inside the picker.
-  statusBar.command = 'bugBeats.setMoodManually';
+  statusBar.command = 'beepify.setMoodManually';
 
   // Mute keyboard shortcut command
   context.subscriptions.push(
-    vscode.commands.registerCommand('bugBeats.toggleMute', toggleMute)
+    vscode.commands.registerCommand('beepify.toggleMute', toggleMute)
   );
 
   // Manual mood picker — opened by clicking the status bar
   context.subscriptions.push(
-    vscode.commands.registerCommand('bugBeats.setMoodManually', async () => {
+    vscode.commands.registerCommand('beepify.setMoodManually', async () => {
       const themes = manager.getMoodThemes();
 
       const moodItems: vscode.QuickPickItem[] = (Object.keys(themes) as Mood[]).map(mood => ({
@@ -250,7 +250,7 @@ export function activate(context: vscode.ExtensionContext): void {
         lastAppliedMood = undefined;
         detector.resetFocusTimer();
         await evaluateAndApply(true, true);
-        vscode.window.showInformationMessage('Bug Beats: Back to auto mode 🔄');
+        vscode.window.showInformationMessage('Beepify: Back to auto mode 🔄');
         return;
       }
 
@@ -267,33 +267,33 @@ export function activate(context: vscode.ExtensionContext): void {
       // immediately. No cooldown, no overlap guard. User chose it; they hear it.
       soundPlayer.play(mood, 'manual').catch(() => { /* non-critical */ });
       vscode.window.showInformationMessage(
-        `Bug Beats: Manually set to ${themes[mood].emoji} ${themes[mood].label}`
+        `Beepify: Manually set to ${themes[mood].emoji} ${themes[mood].label}`
       );
     })
   );
 
   // Toggle auto-switching on/off entirely
   context.subscriptions.push(
-    vscode.commands.registerCommand('bugBeats.toggle', async () => {
+    vscode.commands.registerCommand('beepify.toggle', async () => {
       enabled = !enabled;
       if (enabled) {
         startPolling();
         lastAppliedMood = undefined;
         detector.resetFocusTimer();
         await evaluateAndApply(true, false); // re-enable silently
-        vscode.window.showInformationMessage('Bug Beats: Auto-switching ON ✅');
+        vscode.window.showInformationMessage('Beepify: Auto-switching ON ✅');
       } else {
         stopPolling();
         statusBar.hide();
         await manager.restorePreviousTheme();
-        vscode.window.showInformationMessage('Bug Beats: Auto-switching OFF ⏸');
+        vscode.window.showInformationMessage('Beepify: Auto-switching OFF ⏸');
       }
     })
   );
 
   // Status / debug info
   context.subscriptions.push(
-    vscode.commands.registerCommand('bugBeats.showStatus', () => {
+    vscode.commands.registerCommand('beepify.showStatus', () => {
       const themes = manager.getMoodThemes();
       const cfg = getConfig();
       const { errors, warnings } = detector.getDiagnosticCounts();
@@ -312,7 +312,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Customise colors
   context.subscriptions.push(
-    vscode.commands.registerCommand('bugBeats.customizeColors', async () => {
+    vscode.commands.registerCommand('beepify.customizeColors', async () => {
       const themes = manager.getMoodThemes();
       const moodPick = await vscode.window.showQuickPick(
         (Object.keys(themes) as Mood[]).map(m => ({
@@ -333,7 +333,7 @@ export function activate(context: vscode.ExtensionContext): void {
         validateInput: v => /^#[0-9a-fA-F]{6}$/.test(v) ? null : 'Enter a valid hex like #ff4444',
       });
       if (!accent) { return; }
-      const cfg = vscode.workspace.getConfiguration('bugBeats');
+      const cfg = vscode.workspace.getConfiguration('beepify');
       const overrides: Record<string, { bg: string; accent: string }> = cfg.get('colorOverrides', {});
       overrides[moodPick.mood] = { bg, accent };
       await cfg.update('colorOverrides', overrides, vscode.ConfigurationTarget.Global);
@@ -343,20 +343,20 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Reset colors
   context.subscriptions.push(
-    vscode.commands.registerCommand('bugBeats.resetColors', async () => {
-      await vscode.workspace.getConfiguration('bugBeats')
+    vscode.commands.registerCommand('beepify.resetColors', async () => {
+      await vscode.workspace.getConfiguration('beepify')
         .update('colorOverrides', {}, vscode.ConfigurationTarget.Global);
       lastAppliedMood = undefined;
       await evaluateAndApply(true, false);
-      vscode.window.showInformationMessage('Bug Beats: Custom colours reset ♻️');
+      vscode.window.showInformationMessage('Beepify: Custom colours reset ♻️');
     })
   );
 
   // Open settings
   context.subscriptions.push(
-    vscode.commands.registerCommand('bugBeats.openSettings', () => {
+    vscode.commands.registerCommand('beepify.openSettings', () => {
       vscode.commands.executeCommand(
-        'workbench.action.openSettings', '@ext:bug-beats.bug-beats'
+        'workbench.action.openSettings', '@ext:sanjana-podduturi.beepify'
       );
     })
   );
@@ -379,7 +379,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push({ dispose: () => detector.dispose() });
   context.subscriptions.push({ dispose: () => soundPlayer.dispose() });
 
-  console.log('Bug Beats activated 🎵');
+  console.log('Beepify activated 🎵');
 }
 
 export function deactivate(): void {

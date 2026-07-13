@@ -9,15 +9,15 @@ export interface ThemeDefinition {
 }
 
 const MOOD_THEMES: Record<Mood, ThemeDefinition> = {
-  error: { label: 'Error', themeName: 'Bug Beats: Error 😡', emoji: '😡', description: 'Errors detected — fix them!' },
-  warning: { label: 'Warning', themeName: 'Bug Beats: Warning ⚠️', emoji: '⚠️', description: 'Warnings in your code' },
-  clean: { label: 'Clean', themeName: 'Bug Beats: Clean 😌', emoji: '😌', description: 'No errors — looking good!' },
+  error: { label: 'Error', themeName: 'Beepify: Error 😡', emoji: '😡', description: 'Errors detected — fix them!' },
+  warning: { label: 'Warning', themeName: 'Beepify: Warning ⚠️', emoji: '⚠️', description: 'Warnings in your code' },
+  clean: { label: 'Clean', themeName: 'Beepify: Clean 😌', emoji: '😌', description: 'No errors — looking good!' },
 };
 
 export class ThemeManager {
   private previousTheme: string | undefined;
   /** globalState key where the user's original (non-BugBeats) theme name is saved. */
-  private static readonly ORIGIN_KEY = 'bugBeats.originalTheme';
+  private static readonly ORIGIN_KEY = 'beepify.originalTheme';
 
   constructor(
     private readonly statusBar: vscode.StatusBarItem,

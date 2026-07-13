@@ -75,7 +75,7 @@ export class SoundPlayer {
 
     const wavFile = path.join(this.soundsDir, MOOD_WAV[mood]);
     if (!fs.existsSync(wavFile)) {
-      console.error(`Bug Beats Theme: missing sound file: ${wavFile}`);
+      console.error(`Beepify: missing sound file: ${wavFile}`);
       return;
     }
 
@@ -116,7 +116,7 @@ export class SoundPlayer {
     try {
       await this.spawnPlayer(filePath, volume);
     } catch (e) {
-      console.error('Bug Beats Theme: playback error', e);
+      console.error('Beepify: playback error', e);
     } finally {
       // Only clear shared state if it is still the active play() call.
       // If a newer manual pick has already started (generation > myGen), leave

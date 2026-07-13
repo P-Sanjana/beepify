@@ -1,15 +1,15 @@
 {
-  "name": "bug-beats",
-  "displayName": "Bug Beats",
+  "name": "beepify",
+  "displayName": "Beepify",
   "description": "Dynamic editor theme and sound feedback that reacts to your test results — errors, warnings, and clean builds each have their own beat.",
-  "version": "1.0.0",
-  "publisher": "sanjana-podduturi",
+  "version": "0.0.1",
+  "publisher": "sanjanapodduturi",
   "repository": {
     "type": "git",
-    "url": "https://github.com/P-Sanjana/bug-beats"
+    "url": "https://github.com/P-Sanjana/beepify.git"
   },
   "license": "MIT",
-  "icon": "images/logo.png",
+  "icon": "images/logo.ico",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -36,74 +36,74 @@
   "contributes": {
     "commands": [
       {
-        "command": "bugBeats.setMoodManually",
-        "title": "Bug Beats: Set Mood / Options"
+        "command": "beepify.setMoodManually",
+        "title": "Beepify: Set Mood / Options"
       },
       {
-        "command": "bugBeats.toggleMute",
-        "title": "Bug Beats: Toggle Mute"
+        "command": "beepify.toggleMute",
+        "title": "Beepify: Toggle Mute"
       },
       {
-        "command": "bugBeats.toggle",
-        "title": "Bug Beats: Toggle Auto Theme On/Off"
+        "command": "beepify.toggle",
+        "title": "Beepify: Toggle Auto Theme On/Off"
       },
       {
-        "command": "bugBeats.showStatus",
-        "title": "Bug Beats: Show Status"
+        "command": "beepify.showStatus",
+        "title": "Beepify: Show Status"
       },
       {
-        "command": "bugBeats.customizeColors",
-        "title": "Bug Beats: Customise Mood Colors"
+        "command": "beepify.customizeColors",
+        "title": "Beepify: Customise Mood Colors"
       },
       {
-        "command": "bugBeats.resetColors",
-        "title": "Bug Beats: Reset Custom Colors"
+        "command": "beepify.resetColors",
+        "title": "Beepify: Reset Custom Colors"
       },
       {
-        "command": "bugBeats.openSettings",
-        "title": "Bug Beats: Open Settings"
+        "command": "beepify.openSettings",
+        "title": "Beepify: Open Settings"
       }
     ],
     "keybindings": [
       {
-        "command": "bugBeats.toggleMute",
+        "command": "beepify.toggleMute",
         "key": "ctrl+alt+m",
         "mac": "cmd+alt+m"
       }
     ],
     "configuration": {
-      "title": "Bug Beats",
+      "title": "Beepify",
       "properties": {
-        "bugBeats.enabled": {
+        "beepify.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable/disable automatic mood-based theme switching."
         },
-        "bugBeats.errorThreshold": {
+        "beepify.errorThreshold": {
           "type": "number",
           "default": 1,
           "minimum": 1,
           "description": "Number of Language Server errors before switching to Error mood."
         },
-        "bugBeats.warningThreshold": {
+        "beepify.warningThreshold": {
           "type": "number",
           "default": 5,
           "minimum": 1,
           "description": "Number of Language Server warnings before switching to Warning mood."
         },
-        "bugBeats.soundEnabled": {
+        "beepify.soundEnabled": {
           "type": "boolean",
           "default": true,
           "description": "Play a sound when the mood changes. Click the status bar or press Cmd/Ctrl+Alt+M to mute instantly."
         },
-        "bugBeats.soundVolume": {
+        "beepify.soundVolume": {
           "type": "number",
           "default": 80,
           "minimum": 0,
           "maximum": 100,
           "description": "Sound volume 0–100. macOS and Linux only — Windows SoundPlayer has no volume API."
         },
-        "bugBeats.colorOverrides": {
+        "beepify.colorOverrides": {
           "type": "object",
           "default": {},
           "description": "Custom background and accent colors per mood. Use 'Customise Mood Colors' command.",
@@ -123,17 +123,17 @@
     },
     "themes": [
       {
-        "label": "Bug Beats: Error 😡",
+        "label": "Beepify: Error 😡",
         "uiTheme": "vs-dark",
         "path": "./themes/mood-error.json"
       },
       {
-        "label": "Bug Beats: Warning ⚠️",
+        "label": "Beepify: Warning ⚠️",
         "uiTheme": "vs-dark",
         "path": "./themes/mood-warning.json"
       },
       {
-        "label": "Bug Beats: Clean 😌",
+        "label": "Beepify: Clean 😌",
         "uiTheme": "vs-dark",
         "path": "./themes/mood-clean.json"
       }
