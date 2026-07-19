@@ -2,14 +2,14 @@
   "name": "beepify",
   "displayName": "Beepify",
   "description": "Dynamic editor theme and sound feedback that reacts to your test results — errors, warnings, and clean builds each have their own beat.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "sanjanapodduturi",
   "repository": {
     "type": "git",
     "url": "https://github.com/P-Sanjana/beepify.git"
   },
   "license": "MIT",
-  "icon": "images/logo.ico",
+  "icon": "images/logo.png",
   "engines": {
     "vscode": "^1.85.0"
   },
