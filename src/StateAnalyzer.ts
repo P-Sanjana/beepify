@@ -83,29 +83,15 @@ export class StateAnalyzer {
   public getTerminalTestState(): TestState { return this.terminalTestState; }
 
   public detectMood(ctx: MoodContext): Mood {
-    const cfg = this.config();
-    const { errorCount, warningCount, testState } = ctx;
+    const { testState } = ctx;
 
-    const errorThreshold = cfg.get<number>('errorThreshold', 1);
-    const warnThreshold = cfg.get<number>('warningThreshold', 5);
-
-    // 1. Terminal test result (error/warning/clean)
-    // Terminal test state takes priority over diagnostics for error/warning/clean
-    // because many test runners (jest, pytest, cargo test, go test …) never push
-    // to VS Code's diagnostic API — they only write to the terminal.
+    // Theme changes are driven exclusively by terminal test completions.
     if (testState === 'fail') { return 'error'; }
     if (testState === 'warn') { return 'warning'; }
     if (testState === 'pass') { return 'clean'; }
 
-    // 2. Language-server diagnostics (gated until ready)
-    // Only read diagnostics after the first real onDidChangeDiagnostics event,
-    // which prevents stale session cache from triggering Error on launch.
-    if (this.diagnosticsReady) {
-      if (errorCount >= errorThreshold) { return 'error'; }
-      if (warningCount >= warnThreshold) { return 'warning'; }
-    }
-
-    // 3. Default to clean
+    // No terminal test result yet — stay clean.
+    // Theme only changes when a test command finishes in the terminal.
     return 'clean';
   }
 

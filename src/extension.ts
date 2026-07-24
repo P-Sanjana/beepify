@@ -8,10 +8,6 @@ const POLL_INTERVAL_MS = 5_000;
 let pollTimer: NodeJS.Timeout | undefined;
 let enabled = true;
 let lastAppliedMood: Mood | undefined;
-let manualOverride: Mood | undefined;
-// True once the user has run at least one test. Until then the IDE's own
-// theme is left untouched — theme + sound are activated only by tests.
-let testHasRun = false;
 
 export function activate(context: vscode.ExtensionContext): void {
 
@@ -27,30 +23,15 @@ export function activate(context: vscode.ExtensionContext): void {
   // machine — the one with speakers — even when editing over SSH/WSL/containers.
   const soundPlayer = new SoundPlayer(getConfig, context.extensionPath);
 
-  // fromTest: true when called directly from the test-end handler. Unlocks
-  // theme application for all future calls once the first test has been run.
   async function evaluateAndApply(forceApply = false, playSound = true, fromTest = false): Promise<void> {
     if (!enabled) { return; }
-
-    // Manual mood picks always take effect immediately, regardless of testHasRun.
-    if (manualOverride) {
-      await manager.applyMood(manualOverride, false);
-      return;
-    }
-
-    // Hold off applying any mood theme until the user runs their first test.
-    // This keeps the IDE's default/user-chosen theme intact on startup and
-    // during normal editing — theme + sound are gated on actual test runs.
-    if (!testHasRun && !fromTest) {
-      manager.updateStatusBar('clean'); // show status bar label without touching the theme
-      return;
-    }
-    if (fromTest) { testHasRun = true; } // unlock permanently after first test
 
     const { errors, warnings } = detector.getDiagnosticCounts();
     const testState = detector.getTerminalTestState();
 
-    const newMood = detector.detectMood({
+    // detectMood is purely terminal-driven: testState 'fail'→error, 'warn'→warning,
+    // 'pass'→clean, 'unknown'→clean.
+    const newMood: Mood = detector.detectMood({
       errorCount: errors, warningCount: warnings,
       currentMood: lastAppliedMood ?? 'clean', testState,
     });
@@ -59,12 +40,11 @@ export function activate(context: vscode.ExtensionContext): void {
     if (moodChanged || forceApply) {
       lastAppliedMood = newMood;
       await manager.applyMood(newMood, true);
-      if (playSound) {
-        // 'auto' — subject to cooldown + overlap guard (prevents sound spam
-        // from rapid diagnostic bursts or 50 failing tests at once)
+      if (playSound && fromTest) {
+        // Play sound only when a terminal test result triggered the evaluation.
         soundPlayer.play(newMood, 'auto').catch(() => { /* non-critical */ });
       }
-      notifyMoodChange(newMood, errors, warnings, testState);
+      if (fromTest) { notifyMoodChange(newMood, errors, warnings, testState); }
     } else {
       manager.updateStatusBar(newMood);
     }
@@ -165,18 +145,15 @@ export function activate(context: vscode.ExtensionContext): void {
 
       // Re-evaluate immediately. fromTest=true unlocks theme/sound for the
       // first time (and keeps it unlocked for all future evaluations).
-      evaluateAndApply(true, true, true /* fromTest */);
+      evaluateAndApply(true, true, true /* fromTest */)
+        .catch(err => console.error('Beepify: applyMood failed after test', err));
     })
   );
 
   // Language server diagnostics listener
-  // Only marks diagnosticsReady=true once the FIRST real change event fires
-  // this prevents showing Error on launch from stale VS Code session cache.
   context.subscriptions.push(
     vscode.languages.onDidChangeDiagnostics(() => {
       detector.markDiagnosticsReady();
-      // Silent — diagnostics change as you type, only test-run completion plays a sound.
-      evaluateAndApply(false, false);
     })
   );
 
@@ -211,64 +188,23 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('beepify.toggleMute', toggleMute)
   );
 
-  // Manual mood picker — opened by clicking the status bar
+  // Status bar click — shows mute toggle
   context.subscriptions.push(
     vscode.commands.registerCommand('beepify.setMoodManually', async () => {
-      const themes = manager.getMoodThemes();
-
-      const moodItems: vscode.QuickPickItem[] = (Object.keys(themes) as Mood[]).map(mood => ({
-        label: `${themes[mood].emoji} ${themes[mood].label}`,
-        description: themes[mood].description,
-        detail: mood === lastAppliedMood ? '  ← current' : undefined,
-      }));
-
-      const autoItem: vscode.QuickPickItem = {
-        label: '🔄 Auto (let the extension decide)',
-        description: 'Clear override — re-evaluate immediately with sound',
-      };
-
       const muteItem: vscode.QuickPickItem = {
         label: getConfig().get<boolean>('soundEnabled', true) ? '🔇 Mute sounds' : '🔊 Unmute sounds',
         description: 'Toggle sound on/off (or press Cmd/Ctrl+Alt+M)',
       };
 
       const picked = await vscode.window.showQuickPick(
-        [...moodItems, autoItem, muteItem],
-        { placeHolder: 'Set mood or options — Esc to cancel' }
+        [muteItem],
+        { placeHolder: 'Beepify options — Esc to cancel' }
       );
       if (!picked) { return; }
 
-      // Mute toggle
       if (picked === muteItem) {
         await toggleMute();
-        return;
       }
-
-      // Return to auto
-      if (picked === autoItem) {
-        manualOverride = undefined;
-        lastAppliedMood = undefined;
-        detector.resetFocusTimer();
-        await evaluateAndApply(true, true);
-        vscode.window.showInformationMessage('Beepify: Back to auto mode 🔄');
-        return;
-      }
-
-      // Set a specific mood
-      const mood = (Object.keys(themes) as Mood[]).find(
-        m => `${themes[m].emoji} ${themes[m].label}` === picked.label
-      );
-      if (!mood) { return; }
-
-      manualOverride = mood;
-      lastAppliedMood = mood;
-      await manager.applyMood(mood, true);
-      // 'manual' — kills any currently playing sound and starts this one
-      // immediately. No cooldown, no overlap guard. User chose it; they hear it.
-      soundPlayer.play(mood, 'manual').catch(() => { /* non-critical */ });
-      vscode.window.showInformationMessage(
-        `Beepify: Manually set to ${themes[mood].emoji} ${themes[mood].label}`
-      );
     })
   );
 
@@ -305,7 +241,7 @@ export function activate(context: vscode.ExtensionContext): void {
         `Terminal test state: ${testState}`,
         `Diagnostics ready: ${detector.isDiagnosticsReady() ? 'yes ✅' : 'waiting ⏳'}`,
         `Sound: ${cfg.get<boolean>('soundEnabled', true) ? '🔊 on' : '🔇 muted'}`,
-        manualOverride ? `⚠️  Manual override: ${manualOverride}` : '✅  Auto mode',
+        testState === 'unknown' ? '😌  Waiting for first test run' : '✅  Terminal-driven mode',
       ].join('\n'));
     })
   );
@@ -366,13 +302,18 @@ export function activate(context: vscode.ExtensionContext): void {
   if (enabled) {
     startPolling();
 
-    // Restore the user's original IDE theme if a mood theme was left active from
-    // a previous session. This runs asynchronously but resolves before the first
-    // test completes, so the user sees their own theme from the very first frame.
-    manager.restoreOnStartup().catch(() => { /* non-critical */ });
-
-    // Show the status bar label without touching the IDE theme.
-    manager.updateStatusBar('clean');
+    // Always apply the clean (green) theme on startup to clear any stale mood
+    // (e.g. 'error' left in settings.json from a previous session).
+    // Theme only changes from clean once a terminal test command completes.
+    manager.applyStartupClean()
+      .then(() =>
+        // Force-apply clean through the full applyMood() path so VS Code
+        // reliably loads the green theme. A raw config.update() in
+        // applyStartupClean alone can lose a race against VS Code's own
+        // startup theme-load from settings.json.
+        evaluateAndApply(true, false)
+      )
+      .catch(err => console.error('Beepify: startup clean apply failed', err));
   }
 
   context.subscriptions.push({ dispose: stopPolling });

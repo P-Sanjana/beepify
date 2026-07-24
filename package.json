@@ -123,19 +123,19 @@
     },
     "themes": [
       {
-        "label": "Beepify: Error 😡",
+        "label": "Beepify: Clean",
         "uiTheme": "vs-dark",
-        "path": "./themes/mood-error.json"
+        "path": "./themes/mood-clean.json"
       },
       {
-        "label": "Beepify: Warning ⚠️",
+        "label": "Beepify: Warning",
         "uiTheme": "vs-dark",
         "path": "./themes/mood-warning.json"
       },
       {
-        "label": "Beepify: Clean 😌",
+        "label": "Beepify: Error",
         "uiTheme": "vs-dark",
-        "path": "./themes/mood-clean.json"
+        "path": "./themes/mood-error.json"
       }
     ]
   },

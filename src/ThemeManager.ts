@@ -9,9 +9,9 @@ export interface ThemeDefinition {
 }
 
 const MOOD_THEMES: Record<Mood, ThemeDefinition> = {
-  error: { label: 'Error', themeName: 'Beepify: Error 😡', emoji: '😡', description: 'Errors detected — fix them!' },
-  warning: { label: 'Warning', themeName: 'Beepify: Warning ⚠️', emoji: '⚠️', description: 'Warnings in your code' },
-  clean: { label: 'Clean', themeName: 'Beepify: Clean 😌', emoji: '😌', description: 'No errors — looking good!' },
+  error: { label: 'Error', themeName: 'Beepify: Error', emoji: '😡', description: 'Errors detected - fix them!' },
+  warning: { label: 'Warning', themeName: 'Beepify: Warning', emoji: '⚠️', description: 'Warnings in your code' },
+  clean: { label: 'Clean', themeName: 'Beepify: Clean', emoji: '😌', description: 'No errors - looking good!' },
 };
 
 export class ThemeManager {
@@ -27,8 +27,10 @@ export class ThemeManager {
 
   public async applyMood(mood: Mood, forceApply: boolean): Promise<void> {
     const def = MOOD_THEMES[mood];
-    const workbench = vscode.workspace.getConfiguration('workbench');
-    const currentTheme: string = workbench.get('colorTheme', '');
+
+    // Re-read config each time to get the latest value (never stale).
+    const currentTheme: string =
+      vscode.workspace.getConfiguration('workbench').get('colorTheme', '');
 
     // Save previous theme if it's not one of ours (in-memory fast path)
     if (!this.isManagedTheme(currentTheme)) {
@@ -41,12 +43,16 @@ export class ThemeManager {
       }
     }
 
-    // Apply the named theme
+    // Apply the named theme — always write when forceApply so VS Code actually
+    // reloads the theme even if the name hasn't changed (e.g. cross-session).
     if (currentTheme !== def.themeName || forceApply) {
-      await workbench.update('colorTheme', def.themeName, vscode.ConfigurationTarget.Global);
+      await vscode.workspace
+        .getConfiguration('workbench')
+        .update('colorTheme', def.themeName, vscode.ConfigurationTarget.Global);
     }
 
-    // Apply custom color overrides via workbench.colorCustomizations
+    // Apply custom color overrides via workbench.colorCustomizations.
+    // Done as a separate step after the theme write has resolved.
     await this.applyColorOverrides(mood);
 
     this.updateStatusBar(mood, def);
@@ -57,6 +63,8 @@ export class ThemeManager {
       this.getConfig().get('colorOverrides', {});
 
     const moodOverride = overrides[mood];
+
+    // Re-read workbench config fresh (post colorTheme write) to avoid stale cache.
     const workbench = vscode.workspace.getConfiguration('workbench');
     const existing: Record<string, string> = workbench.get('colorCustomizations', {});
 
@@ -89,11 +97,19 @@ export class ThemeManager {
       cleaned['terminal.background'] = bg;
     }
 
-    await workbench.update(
-      'colorCustomizations',
-      Object.keys(cleaned).length > 0 ? cleaned : undefined,
-      vscode.ConfigurationTarget.Global
-    );
+    const newValue = Object.keys(cleaned).length > 0 ? cleaned : undefined;
+
+    // Only write colorCustomizations when there is actually something to set or
+    // something to clear — skip the redundant write entirely when both old and
+    // new state are empty. This prevents an unnecessary async config write that
+    // can race with the preceding colorTheme write and cause VS Code to
+    // temporarily flicker back to the old theme.
+    const hadCustomizations = Object.keys(existing).some(k => MANAGED_KEYS.includes(k));
+    if (moodOverride || hadCustomizations) {
+      await vscode.workspace
+        .getConfiguration('workbench')
+        .update('colorCustomizations', newValue, vscode.ConfigurationTarget.Global);
+    }
   }
 
   /** Lighten (negative amount) or darken (positive) a hex colour by a ratio */
@@ -129,25 +145,49 @@ export class ThemeManager {
   }
 
   /**
-   * Called once on activation. If VS Code reopened with a theme still active
-   * (left over from a previous session), silently restores the user's original
-   * theme so the IDE always starts with the user's own theme.
+   * Called once on activation. Always applies the clean (green) theme so VS Code
+   * starts in a known good state regardless of what was left in settings.json
+   * from a previous session. Clears any leftover colorCustomizations too.
    */
-  public async restoreOnStartup(): Promise<void> {
+  public async applyStartupClean(): Promise<void> {
+    const cleanDef = MOOD_THEMES['clean'];
     const workbench = vscode.workspace.getConfiguration('workbench');
     const currentTheme = workbench.get<string>('colorTheme', '');
 
-    // Nothing to do — IDE is already on the user's own theme.
-    if (!this.isManagedTheme(currentTheme)) { return; }
+    // Save the user's original theme before we ever touch it.
+    if (!this.isManagedTheme(currentTheme)) {
+      this.previousTheme = currentTheme;
+      const saved = this.context.globalState.get<string>(ThemeManager.ORIGIN_KEY);
+      if (saved !== currentTheme) {
+        void this.context.globalState.update(ThemeManager.ORIGIN_KEY, currentTheme);
+      }
+    }
 
-    // Look up the theme that was active before we ever touched it.
-    const original = this.context.globalState.get<string>(ThemeManager.ORIGIN_KEY);
-    if (!original) { return; } // no record — leave as is rather than guessing
+    // Always write the clean theme on startup so any stale mood theme
+    // (e.g. Error left over from last session) is immediately replaced.
+    await vscode.workspace
+      .getConfiguration('workbench')
+      .update('colorTheme', cleanDef.themeName, vscode.ConfigurationTarget.Global);
 
-    this.previousTheme = original;
-    await workbench.update('colorTheme', original, vscode.ConfigurationTarget.Global);
-    // Also clear any leftover color customizations.
-    await workbench.update('colorCustomizations', undefined, vscode.ConfigurationTarget.Global);
+    // Clear any leftover color customizations from a previous session.
+    const existing: Record<string, string> =
+      vscode.workspace.getConfiguration('workbench').get('colorCustomizations', {});
+    const MANAGED_KEYS = [
+      'editor.background', 'editorCursor.foreground', 'activityBar.background',
+      'sideBar.background', 'statusBar.background', 'tab.activeBackground', 'terminal.background',
+    ];
+    const hadCustomizations = Object.keys(existing).some(k => MANAGED_KEYS.includes(k));
+    if (hadCustomizations) {
+      const cleaned = { ...existing };
+      for (const k of MANAGED_KEYS) { delete cleaned[k]; }
+      await vscode.workspace
+        .getConfiguration('workbench')
+        .update(
+          'colorCustomizations',
+          Object.keys(cleaned).length > 0 ? cleaned : undefined,
+          vscode.ConfigurationTarget.Global
+        );
+    }
   }
 
   public isManagedTheme(themeName: string): boolean {

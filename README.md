@@ -10,11 +10,9 @@ Run any test command in the integrated terminal. Beepify listens for the result 
 
 | Result | Theme | Sound |
 |--------|-------|-------|
-| 😡 **Error** | Deep red — tests failed | Error sound |
+| 😌 **Clean** | Calm green — startup default / all tests passed | Clean sound |
 | ⚠️ **Warning** | Amber/orange — warnings detected | Warning sound |
-| 😌 **Clean** | Calm green — all tests passed | Clean sound |
-
-> The IDE's default theme is shown on startup. Theme and sound only activate when a test runs.
+| 😡 **Error** | Deep red — tests failed | Error sound |
 
 ## Supported Test Runners
 
@@ -24,14 +22,13 @@ Works with **any** test runner across **12+ languages** — Jest, pytest, cargo 
 
 The extension activates automatically. Look for the 🎵 indicator in the status bar.
 
-- **Click the status bar** to set a mood manually or access options
+- **Click the status bar** to toggle mute
 - **`Ctrl/Cmd+Alt+M`** to toggle mute
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `Beepify: Set Mood / Options` | Pick a mood or toggle mute from a quick picker |
 | `Beepify: Toggle Auto Theme On/Off` | Enable/disable automatic switching |
 | `Beepify: Show Status` | See current mood + diagnostic counts |
 | `Beepify: Toggle Mute` | Mute/unmute sounds |
@@ -61,5 +58,4 @@ The extension activates automatically. Look for the 🎵 indicator in the status
 ## Tips
 
 - Set `beepify.errorThreshold` to `3` if you only want the red theme on significant errors
-- Use **Set Mood / Options → Auto** to clear any manual mood override
 - `Ctrl/Cmd+Alt+M` is the fastest way to mute during a meeting
